@@ -1,0 +1,23 @@
+---
+description: Editable PPTX generation rules
+globs: src/presentation/renderer/pptx/**/*.ts
+alwaysApply: false
+---
+
+# PPTX generation
+
+Export from LayoutIR using PptxGenJS native objects.
+
+- Text stays `addText`
+- Rects, round rects, ellipses, and chevrons stay `addShape`
+- Slide size is 16:9 widescreen (13.333" × 7.5")
+- Never rasterize the finished slide to PNG/JPEG
+- Do not read copy from React components; use the compiled presentation
+
+```ts
+// BAD
+slide.addImage({ data: screenshotPng, x: 0, y: 0, w: 13.33, h: 7.5 });
+
+// GOOD
+slide.addText(node.text, { x, y, w, h, fontFace: "Calibri", fontSize });
+```

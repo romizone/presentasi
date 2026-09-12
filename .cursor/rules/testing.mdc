@@ -1,0 +1,21 @@
+---
+description: DSL and layout test expectations
+globs: "**/*.{test,spec}.ts"
+alwaysApply: false
+---
+
+# Testing
+
+Cover the Presentation OS invariants before visual polish.
+
+- DSL validation rejects coordinates and missing required fields
+- Layout is deterministic for the same slide + theme
+- All nodes sit inside the 16:9 slide
+- Primary frames do not overlap
+- PPTX is a real OOXML zip, not a screenshot
+
+```ts
+// GOOD
+expect(JSON.stringify(layoutTr01(slide, theme))).toBe(JSON.stringify(again));
+expect(buffer.subarray(0, 2).toString()).toBe("PK");
+```

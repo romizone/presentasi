@@ -1,0 +1,22 @@
+---
+description: Frontend rendering of LayoutIR
+globs: src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Frontend
+
+The preview page renders LayoutIR, not ad-hoc slide markup.
+
+- Keep the canvas 16:9
+- Prefer the consulting theme tokens already resolved into LayoutIR
+- Do not add decorative illustration that will not exist in PPTX
+- Export PPTX via `/api/export/pptx` so PptxGenJS stays server-side
+
+```tsx
+// BAD
+<div className="grid grid-cols-2">...hard-coded sample bullets...</div>
+
+// GOOD
+<SlideCanvas layout={compiled.layouts[0]} />
+```

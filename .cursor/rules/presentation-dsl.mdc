@@ -1,0 +1,21 @@
+---
+description: Presentation DSL must stay semantic
+globs: src/presentation/dsl/**/*.ts
+alwaysApply: false
+---
+
+# Presentation DSL
+
+The DSL is the shared contract for web and PPTX. It must not contain physical geometry.
+
+Forbidden keys: `x`, `y`, `w`, `h`, `left`, `top`, `fontSize`, `coordinates`.
+
+```ts
+// BAD
+{ archetype: "TR-01", x: 0.5, y: 0.3, fontSize: 22 }
+
+// GOOD
+{ archetype: "TR-01", actionTitle: "...", content: { current, transformation, target, takeaway } }
+```
+
+Validate with `validatePresentation` before layout. M0 implements only `TR-01`.

@@ -1,0 +1,22 @@
+---
+description: OpenRouter-only AI and secret isolation
+globs: src/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# AI model usage
+
+- Use OpenRouter only via `OPENROUTER_API_KEY` on the server
+- Never expose the key to the browser (`NEXT_PUBLIC_*` is forbidden)
+- Never hard-code model IDs; use `src/presentation/ai/model-router.ts`
+- Models emit semantic DSL only — never x, y, w, h, fontSize, or other layout fields
+
+```ts
+// BAD
+const key = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+await fetch("https://api.anthropic.com/...");
+
+// GOOD
+const key = process.env.OPENROUTER_API_KEY; // server-only
+const model = getModel("strategist");
+```

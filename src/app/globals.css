@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #2556bc;
+  --interactive: #467ddb;
+  --highlight: #85c3e5;
+  --surface: #e7f1f9;
+  --neutral: #515151;
+  --background: #e7f1f9;
+  --foreground: #515151;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-interactive: var(--interactive);
+  --color-highlight: var(--highlight);
+  --color-surface: var(--surface);
+  --color-neutral: var(--neutral);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-source-serif);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.font-serif {
+  font-family: var(--font-source-serif), ui-serif, Georgia, serif;
+}
+
+@keyframes photo-slot-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.photo-slot-pulse {
+  animation: photo-slot-pulse 1.4s ease-in-out infinite;
+}

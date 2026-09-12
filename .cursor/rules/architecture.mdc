@@ -1,0 +1,23 @@
+---
+description: Seven-layer architecture and M0 module boundaries
+alwaysApply: true
+---
+
+# Architecture
+
+Separate concerns. Do not collapse them into page components.
+
+- DSL: semantic presentation data only
+- Archetypes: deterministic layout (LayoutIR)
+- Web renderer and PPTX renderer: consume LayoutIR, never invent content
+- AI may generate semantic DSL via OpenRouter; Visual QA, Editor, auth, and database stay out of scope for M0
+
+```ts
+// BAD — coordinates in page-local JSX as the source of truth
+<div className="absolute left-[32px] top-[48px]">Current State</div>
+
+// GOOD — render LayoutIR nodes from src/presentation
+<SlideCanvas layout={layout} />
+```
+
+Put new presentation code under `src/presentation/{dsl,archetypes,themes,renderer}`.

@@ -1,0 +1,34 @@
+import type { SlideIconId } from "../archetypes/layout-types";
+
+const KEYWORD_ICONS: { pattern: RegExp; icon: SlideIconId }[] = [
+  { pattern: /gizi|makan|menu|nutrisi|utensil|food/i, icon: "utensils" },
+  { pattern: /sekolah|siswa|anak|murid|school|student/i, icon: "graduation" },
+  { pattern: /kesehatan|heart|sehat|health/i, icon: "heart" },
+  { pattern: /manual|ragu|lemah|kurang|lambat/i, icon: "clipboard" },
+  { pattern: /fragment|pecah|terpisah|silo|layer/i, icon: "layers" },
+  { pattern: /monitor|lihat|visib|awas|eye/i, icon: "eye" },
+  { pattern: /cari|discover|search|temu/i, icon: "search" },
+  { pattern: /auto|otomatis|cepat|zap|kilat/i, icon: "zap" },
+  { pattern: /monitor(?:ing)?|berkelanjut|contin/i, icon: "activity" },
+  { pattern: /integr|hubung|sync|cmdb|itsm|link/i, icon: "link" },
+  { pattern: /standar|check|siap|selesai|aman/i, icon: "check" },
+  { pattern: /orang|user|pelanggan|masyarakat/i, icon: "users" },
+  { pattern: /lindung|shield|keamanan/i, icon: "shield" },
+  { pattern: /ulang|refresh|perbarui/i, icon: "refresh" },
+];
+
+const CURRENT_FALLBACK: SlideIconId[] = ["clipboard", "layers", "eye", "search"];
+const TARGET_FALLBACK: SlideIconId[] = ["zap", "activity", "check", "sparkles"];
+
+export function iconForItem(
+  text: string,
+  index: number,
+  side: "current" | "target",
+): SlideIconId {
+  const match = KEYWORD_ICONS.find((rule) => rule.pattern.test(text));
+  if (match) {
+    return match.icon;
+  }
+  const fallback = side === "current" ? CURRENT_FALLBACK : TARGET_FALLBACK;
+  return fallback[index % fallback.length] ?? "sparkles";
+}

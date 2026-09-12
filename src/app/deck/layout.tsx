@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import "@/app/deck.css";
 
 /** Deck routes need scrollable body (root layout uses overflow-hidden). */
-export default function DeckLayout(props: LayoutProps<"/deck">) {
+export default function DeckLayout({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
@@ -10,7 +11,7 @@ export default function DeckLayout(props: LayoutProps<"/deck">) {
         background: "#e8eef3",
       }}
     >
-      {props.children}
+      {children}
     </div>
   );
 }

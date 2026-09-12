@@ -29,7 +29,8 @@ export type PlanDeckInput = {
 };
 
 function defaultSlideCount(style: StyleId): number {
-  return style === "consulting" ? 8 : 6;
+  // Lean defaults for latency; users can still ask for a longer deck in the brief.
+  return style === "consulting" ? 5 : 4;
 }
 
 function defaultStoryline(style: StyleId, override?: Storyline): Storyline {
@@ -86,14 +87,14 @@ export async function planDeck(input: PlanDeckInput): Promise<NarrativePlan> {
   ].join("\n\n");
 
   const { data } = await chat({
-    model: getModel("planner"),
+    model: getModel("writer"),
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
     schema: NarrativePlanSchema,
     schemaName: "narrative_plan",
-    temperature: 0.4,
+    temperature: 0.35,
     cost: input.cost,
   });
 

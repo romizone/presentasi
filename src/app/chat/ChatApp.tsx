@@ -83,6 +83,14 @@ export function ChatApp() {
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [illustrating, setIllustrating] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState<string>(
+    "Menyusun kerangka deck…",
+  );
+  const [generateElapsed, setGenerateElapsed] = useState(0);
+  const [slideProgress, setSlideProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [showArtifact, setShowArtifact] = useState(false);
   const [deck, setDeck] = useState<Deck | null>(null);
   const [deckImages, setDeckImages] = useState<DeckImageMap>({});
@@ -98,7 +106,16 @@ export function ChatApp() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isGenerating]);
+  }, [messages, isGenerating, generateStatus, generateElapsed]);
+
+  useEffect(() => {
+    if (!isGenerating) return;
+    const started = Date.now();
+    const id = window.setInterval(() => {
+      setGenerateElapsed(Math.floor((Date.now() - started) / 1000));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [isGenerating]);
 
   useEffect(() => {
     return () => {
@@ -148,6 +165,9 @@ export function ChatApp() {
     setMessages((current) => [...current, userMessage]);
     setIsGenerating(true);
     setIllustrating(false);
+    setGenerateElapsed(0);
+    setGenerateStatus("Menyusun outline argumen…");
+    setSlideProgress(null);
     setPresentation(null);
     setDeck(null);
     setDeckImages({});
@@ -167,20 +187,73 @@ export function ChatApp() {
           topic: prompt,
           style: styleId,
           generateImages: false,
+          stream: true,
+          fast: true,
           materials: attachments.map((file) => ({
             name: file.name,
             textExcerpt: file.textExcerpt,
           })),
         }),
       });
-      const payload = (await response.json()) as {
-        deck?: Deck;
-        cost?: number;
-        images?: { slideIndex: number; dataUri: string }[];
-        error?: string;
-      };
-      if (!response.ok || !payload.deck) {
-        throw new Error(payload.error ?? "Gagal menyusun deck");
+
+      if (!response.ok || !response.body) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error ?? "Gagal menyusun deck");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let resultDeck: Deck | null = null;
+      let resultCost: number | undefined;
+      let resultImages: { slideIndex: number; dataUri: string }[] | undefined;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          const event = JSON.parse(trimmedLine) as {
+            type: string;
+            stage?: string;
+            message?: string;
+            done?: number;
+            total?: number;
+            deck?: Deck;
+            cost?: number;
+            images?: { slideIndex: number; dataUri: string }[];
+            error?: string;
+          };
+
+          if (event.type === "progress") {
+            if (event.message) setGenerateStatus(event.message);
+            if (event.stage === "images") setIllustrating(true);
+            if (
+              event.stage === "slides" &&
+              typeof event.done === "number" &&
+              typeof event.total === "number"
+            ) {
+              setSlideProgress({ done: event.done, total: event.total });
+            }
+          } else if (event.type === "result" && event.deck) {
+            resultDeck = event.deck;
+            resultCost = event.cost;
+            resultImages = event.images;
+          } else if (event.type === "error") {
+            throw new Error(event.error ?? "Gagal menyusun deck");
+          }
+        }
+      }
+
+      if (!resultDeck) {
+        throw new Error("Gagal menyusun deck");
       }
 
       const materialNote =
@@ -189,25 +262,25 @@ export function ChatApp() {
               .map((file) => file.name)
               .join(", ")}).`
           : "Saya memakai brief Anda.";
-      const titles = payload.deck.slides
+      const titles = resultDeck.slides
         .slice(0, 3)
         .map((s) => s.actionTitle)
         .join(" · ");
 
-      setDeck(payload.deck);
-      setDeckCost(payload.cost);
+      setDeck(resultDeck);
+      setDeckCost(resultCost);
       const deckId = `gen-${Date.now()}`;
       try {
-        sessionStorage.setItem(`deck:${deckId}`, JSON.stringify(payload.deck));
-        if (payload.cost !== undefined) {
-          sessionStorage.setItem(`deck-cost:${deckId}`, String(payload.cost));
+        sessionStorage.setItem(`deck:${deckId}`, JSON.stringify(resultDeck));
+        if (resultCost !== undefined) {
+          sessionStorage.setItem(`deck-cost:${deckId}`, String(resultCost));
         }
       } catch {
         // sessionStorage may be unavailable
       }
-      if (payload.images) {
+      if (resultImages) {
         const map: DeckImageMap = {};
-        for (const img of payload.images) {
+        for (const img of resultImages) {
           map[img.slideIndex] = img.dataUri;
         }
         setDeckImages(map);
@@ -217,8 +290,8 @@ export function ChatApp() {
         {
           id: createId(),
           role: "assistant",
-          content: `${materialNote} Deck ${payload.deck!.style}: ${payload.deck!.slides.length} slide. ${titles}${
-            payload.deck!.slides.length > 3 ? "…" : ""
+          content: `${materialNote} Deck ${resultDeck!.style}: ${resultDeck!.slides.length} slide. ${titles}${
+            resultDeck!.slides.length > 3 ? "…" : ""
           }`,
           attachments: [],
         },
@@ -242,6 +315,7 @@ export function ChatApp() {
     } finally {
       setIsGenerating(false);
       setIllustrating(false);
+      setSlideProgress(null);
     }
   };
 
@@ -399,11 +473,45 @@ export function ChatApp() {
                   </article>
                 ))}
                 {isGenerating ? (
-                  <p className="text-sm text-interactive">
-                    {illustrating
-                      ? "Menyusun ilustrasi dekoratif…"
-                      : "Menyusun kerangka deck…"}
-                  </p>
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-highlight">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-interactive">
+                        {generateStatus}
+                      </p>
+                      <p className="tabular-nums text-sm font-semibold text-primary">
+                        {generateElapsed}s
+                      </p>
+                    </div>
+                    {slideProgress ? (
+                      <div className="mt-2">
+                        <div className="mb-1 flex justify-between text-[11px] text-neutral/60">
+                          <span>
+                            Slide {slideProgress.done}/{slideProgress.total}
+                          </span>
+                          <span>
+                            {Math.round(
+                              (slideProgress.done /
+                                Math.max(slideProgress.total, 1)) *
+                                100,
+                            )}
+                            %
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+                          <div
+                            className="h-full rounded-full bg-interactive transition-[width] duration-300"
+                            style={{
+                              width: `${(slideProgress.done / Math.max(slideProgress.total, 1)) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface">
+                        <div className="h-full w-1/3 animate-pulse rounded-full bg-interactive/70" />
+                      </div>
+                    )}
+                  </div>
                 ) : null}
                 <div ref={bottomRef} />
               </div>

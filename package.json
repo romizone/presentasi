@@ -8,14 +8,21 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke": "tsx --env-file=.env.local scripts/smoke.ts",
+    "generate:deck": "tsx --env-file=.env.local scripts/generate-deck.ts"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",
     "next": "16.3.4",
+    "p-limit": "^7.3.2",
     "pptxgenjs": "^4.0.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "vega": "^6.4.0",
+    "vega-lite": "^6.4.3",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -24,7 +31,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

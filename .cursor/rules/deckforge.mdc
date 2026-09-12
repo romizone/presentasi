@@ -1,0 +1,51 @@
+---
+description: Aturan arsitektur DeckForge — batasan yang tidak boleh dilanggar
+alwaysApply: true
+---
+
+# Aturan proyek DeckForge
+
+Baca `docs/SPEC.md` sebelum mengerjakan tugas apa pun. Spec adalah sumber kebenaran;
+`docs/TASKS.md` adalah urutan kerja. Kerjakan satu task, verifikasi kriterianya, baru lanjut.
+
+Presentasi AI adalah implementasi DeckForge. Kode presentasi tetap di `src/presentation/`.
+Jangan membongkar ulang ke folder `lib/` dalam satu langkah — pindahkan bertahap sesuai task.
+
+## Larangan keras
+
+1. **Jangan pernah menghasilkan chart, grafik, tabel, atau diagram lewat model gambar.**
+   Chart selalu: LLM menulis `ChartSpec` JSON → Vega-Lite → SVG. Kalau kamu menulis prompt
+   gambar yang mengandung kata "chart", "graph", "diagram", "bar", atau "grafik", itu bug.
+
+2. **Jangan minta model gambar merender teks.** Semua teks dioverlay sebagai HTML/SVG.
+   Setiap prompt gambar harus diakhiri dengan `no text, no letters, no numbers, no watermark`.
+
+3. **Jangan pakai nama merek** (firma konsultan atau media) di kode, UI, nama file,
+   komentar, atau string apa pun. Gunakan `consulting`, `editorial`, `dense`, `card`.
+
+4. **Jangan hardcode slug model.** Baca lewat `src/presentation/ai/model-router.ts`
+   dan env `MODEL_PLANNER`, `MODEL_WRITER`, `MODEL_IMAGE` (alias lama `OPENROUTER_MODEL_*`
+   tetap dibaca). Slug OpenRouter berganti tiap beberapa bulan.
+
+5. **Jangan hilangkan `provider: { require_parameters: true }`** dari panggilan yang memakai
+   `response_format`. Tanpa itu, OpenRouter bisa merutekan ke provider yang mengabaikan
+   strict schema.
+
+6. **Jangan biarkan `chart.source` kosong.** Validator harus menolak, bukan memberi peringatan.
+
+7. **Jangan pakai `localStorage`/`sessionStorage`** di komponen preview yang dirender
+   Playwright — tidak tersedia di konteks itu.
+
+8. **Jangan taruh `OPENROUTER_API_KEY` di `NEXT_PUBLIC_*` atau kode klien.**
+
+## Kewajiban
+
+- TypeScript strict. Tanpa `any`. Tipe diturunkan dari zod lewat `z.infer` begitu skema ada.
+- AI hanya emit data semantik. Archetype / layout component yang punya geometri.
+- PPTX tetap objek native (teks, shape, chart), bukan screenshot full-slide.
+- Satu tahap pipeline = satu tanggung jawab (SPEC bagian 3).
+- Gaya baru berarti file baru di tema/style, bukan cabang `if` di dalam prompt.
+
+## Kalau ragu
+
+Tanya sebelum menebak, terutama untuk bentuk skema, validasi yang gagal, dan biaya API.

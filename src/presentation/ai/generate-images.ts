@@ -2,13 +2,24 @@ import { getModel, openRouterHeaders } from "./model-router";
 import type { PresentationAssets, SceneAsset, Slide } from "../dsl/types";
 
 const QUALITY_LOCK = [
-  "The Economist explainer infographic, landscape 16:9 exhibit panel.",
-  "Flat vector illustration, editorial diagram, print-magazine quality.",
+  "Flat vector consulting illustration, landscape 16:9 exhibit panel.",
   "Limited palette only: navy #1B365D, blue #2556BC, steel #467DDB, ice #85C3E5, charcoal #515151, paper #F4F7FA.",
   "Geometric pictograms, thick and thin line work, generous negative space, isometric or flat 2-D.",
+  "Decorative illustration only — never a data visualization.",
   "No photograph, no photorealism, no cinematic lighting, no 3-D render, no collage, no UI.",
-  "No readable words, letters, numbers, captions, logos, or watermarks.",
+  "no text, no letters, no numbers, no watermark",
 ].join(" ");
+
+/** Strip words that would push the image model toward fake charts. */
+const FORBIDDEN_IMAGE_WORDS =
+  /\b(chart|graph|diagram|bar|grafik|infographic|table|tabel)\b/gi;
+
+function sanitizeSceneBrief(text: string): string {
+  return text
+    .replace(FORBIDDEN_IMAGE_WORDS, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 export type ImageRef = {
   dataUri?: string;
@@ -22,10 +33,17 @@ export function scenePrompt(slide: Slide, side: "current" | "target"): string {
   const items = slide.content[side].items.join("; ");
   const mood =
     side === "current"
-      ? "Fragmented, scattered composition. Cooler steel-blue. The problem as a single diagram."
-      : "Ordered, aligned composition. Deeper navy. The resolved system as a single diagram.";
-  const subject = authored?.trim() || `${slide.content[side].title}: ${items}`;
-  return `${QUALITY_LOCK} ${mood} Depict: ${subject}. Exhibit about: ${slide.actionTitle}.`;
+      ? "Fragmented, scattered composition. Cooler steel-blue. The problem as pictograms."
+      : "Ordered, aligned composition. Deeper navy. The resolved system as pictograms.";
+  const subject = sanitizeSceneBrief(
+    authored?.trim() || `${slide.content[side].title}: ${items}`,
+  );
+  const topic = sanitizeSceneBrief(slide.actionTitle);
+  const prompt = `${QUALITY_LOCK} ${mood} Depict: ${subject}. Exhibit about: ${topic}.`;
+  if (/no text,\s*no letters,\s*no numbers,\s*no watermark\s*$/i.test(prompt)) {
+    return prompt;
+  }
+  return `${prompt.replace(/[.\s]+$/g, "")}, no text, no letters, no numbers, no watermark`;
 }
 
 function mimeFromDataUri(value: string): string {

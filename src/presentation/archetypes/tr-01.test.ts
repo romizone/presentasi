@@ -83,7 +83,7 @@ describe("TR-01 layout engine", () => {
     expect(current.rect.y).toBe(target.rect.y);
   });
 
-  it("always reserves Economist graphic panels", () => {
+  it("always reserves decorative graphic panels", () => {
     expect(layout.nodes.some((node) => node.id === "current-photo-slot")).toBe(
       true,
     );
@@ -97,7 +97,7 @@ describe("TR-01 layout engine", () => {
     );
   });
 
-  it("places infographic images when scene assets exist", () => {
+  it("places decorative scene images when scene assets exist", () => {
     const photo =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
     const withPhotos = layoutTr01(slide, strategyConsultingTheme, {
@@ -130,7 +130,7 @@ describe("TR-01 layout engine", () => {
     expect(currentPhoto.rect.h).toBe(targetSlot.rect.h);
   });
 
-  it("keeps a McKinsey action title above the exhibit", () => {
+  it("keeps an insight action title above the exhibit", () => {
     const title = layout.nodes.find((node) => node.id === "action-title");
     const rule = layout.nodes.find((node) => node.id === "title-rule");
     expect(title?.kind).toBe("text");

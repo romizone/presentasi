@@ -1,35 +1,34 @@
-# Presentasi AI
+# Presentasi AI (DeckForge)
 
-AI-powered presentation maker. A brief becomes a McKinsey-style TR-01 exhibit (Current → Target) with Economist-style infographics, then an editable PPTX.
+Presentation maker di atas OpenRouter. Brief atau dokumen → deck `consulting` /
+`editorial` dengan chart Vega-Lite, lalu PPTX (chart native) atau PDF.
 
-Live: [https://presentasi.rominur.com](https://presentasi.rominur.com)
+Sumber kebenaran: [`docs/SPEC.md`](docs/SPEC.md) · urutan kerja: [`docs/TASKS.md`](docs/TASKS.md)
+
+Live: [https://presentasi-inky.vercel.app](https://presentasi-inky.vercel.app)
 
 ## Run
 
 ```bash
 cp .env.example .env.local
-# set OPENROUTER_API_KEY in .env.local
+# set OPENROUTER_API_KEY
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Generation calls OpenRouter on the server only.
+Buka [http://localhost:3000](http://localhost:3000). Galeri chart: `/dev/charts`.
 
-## Export PPTX
-
-Use **Export PPTX** on the preview page, or:
+## Scripts
 
 ```bash
-curl -o tr-01-current-target.pptx http://localhost:3000/api/export/pptx
+npm run smoke              # OpenRouter + structured output
+npm run generate:deck -- "Topik deck consulting"
+npm run typecheck && npm test && npm run lint && npm run build
 ```
 
-Open the file in PowerPoint or Keynote and confirm text and shapes remain editable.
+## Prinsip keras
 
-## Verify
-
-```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
+- Chart: LLM menulis `ChartSpec` → Vega-Lite → SVG (bukan model gambar)
+- Prompt gambar diakhiri `no text, no letters, no numbers, no watermark`
+- Tanpa nama merek di UI/kode — pakai `consulting` / `editorial` / `dense` / `card`
+- Model lewat env `MODEL_PLANNER`, `MODEL_WRITER`, `MODEL_IMAGE`

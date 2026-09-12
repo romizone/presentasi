@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AttachmentChip } from "./AttachmentChip";
+import { DeckViewer, type DeckImageMap } from "./DeckViewer";
 import {
   ACCEPT_ATTRIBUTE,
   kindOf,
@@ -19,6 +20,7 @@ import {
   type ChatAttachment,
 } from "./files";
 import { PresentationPanel } from "./PresentationPanel";
+import type { Deck, StyleId } from "@/lib/schema";
 import type { Presentation } from "@/presentation/dsl/types";
 
 type ChatMessage = {
@@ -28,21 +30,23 @@ type ChatMessage = {
   attachments: ChatAttachment[];
 };
 
+type DeckStyleChoice = Extract<StyleId, "consulting" | "editorial">;
+
 const STARTERS = [
   {
-    label: "Slide tentang MBG",
+    label: "Deck tentang MBG",
     prompt:
-      "Buatkan 1 slide Current → Target tentang program Makan Bergizi Gratis (MBG): dari distribusi yang belum merata ke menu bergizi terstandar di sekolah.",
+      "Buatkan deck consulting tentang program Makan Bergizi Gratis (MBG): dari distribusi yang belum merata ke menu bergizi terstandar di sekolah.",
   },
   {
     label: "Digitalisasi layanan publik",
     prompt:
-      "Susun slide kondisi sekarang vs sasaran untuk digitalisasi layanan publik yang masih manual dan terfragmentasi.",
+      "Susun deck kondisi sekarang vs sasaran untuk digitalisasi layanan publik yang masih manual dan terfragmentasi.",
   },
   {
     label: "Transformasi rantai pasok",
     prompt:
-      "Presentasikan Current → Target untuk rantai pasok yang lambat menuju operasi terintegrasi dan terukur.",
+      "Presentasikan argumen consulting untuk rantai pasok yang lambat menuju operasi terintegrasi dan terukur.",
   },
 ];
 
@@ -80,7 +84,11 @@ export function ChatApp() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [illustrating, setIllustrating] = useState(false);
   const [showArtifact, setShowArtifact] = useState(false);
+  const [deck, setDeck] = useState<Deck | null>(null);
+  const [deckImages, setDeckImages] = useState<DeckImageMap>({});
+  const [deckCost, setDeckCost] = useState<number | undefined>();
   const [presentation, setPresentation] = useState<Presentation | null>(null);
+  const [styleId, setStyleId] = useState<DeckStyleChoice>("consulting");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,19 +148,25 @@ export function ChatApp() {
     setMessages((current) => [...current, userMessage]);
     setIsGenerating(true);
     setIllustrating(false);
+    setPresentation(null);
+    setDeck(null);
+    setDeckImages({});
+    setDeckCost(undefined);
 
     const prompt =
       trimmed ||
-      `Buatkan slide Current → Target berdasarkan materi: ${attachments
+      `Buatkan deck berdasarkan materi: ${attachments
         .map((file) => file.name)
         .join(", ")}`;
 
     try {
-      const response = await fetch("/api/generate/slide", {
+      const response = await fetch("/api/generate/deck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt,
+          topic: prompt,
+          style: styleId,
+          generateImages: false,
           materials: attachments.map((file) => ({
             name: file.name,
             textExcerpt: file.textExcerpt,
@@ -160,63 +174,60 @@ export function ChatApp() {
         }),
       });
       const payload = (await response.json()) as {
-        presentation?: Presentation;
+        deck?: Deck;
+        cost?: number;
+        images?: { slideIndex: number; dataUri: string }[];
         error?: string;
       };
-      if (!response.ok || !payload.presentation) {
-        throw new Error(payload.error ?? "Gagal menyusun slide");
+      if (!response.ok || !payload.deck) {
+        throw new Error(payload.error ?? "Gagal menyusun deck");
       }
 
-      const slide = payload.presentation.slides[0];
       const materialNote =
         attachments.length > 0
           ? `Saya memakai ${attachments.length} file materi (${attachments
               .map((file) => file.name)
               .join(", ")}).`
           : "Saya memakai brief Anda.";
-      const summary = slide
-        ? `${slide.actionTitle}${
-            slide.content.takeaway ? ` ${slide.content.takeaway}` : ""
-          }`
-        : "Slide Current → Target sudah disusun.";
+      const titles = payload.deck.slides
+        .slice(0, 3)
+        .map((s) => s.actionTitle)
+        .join(" · ");
 
-      setPresentation(payload.presentation);
+      setDeck(payload.deck);
+      setDeckCost(payload.cost);
+      const deckId = `gen-${Date.now()}`;
+      try {
+        sessionStorage.setItem(`deck:${deckId}`, JSON.stringify(payload.deck));
+        if (payload.cost !== undefined) {
+          sessionStorage.setItem(`deck-cost:${deckId}`, String(payload.cost));
+        }
+      } catch {
+        // sessionStorage may be unavailable
+      }
+      if (payload.images) {
+        const map: DeckImageMap = {};
+        for (const img of payload.images) {
+          map[img.slideIndex] = img.dataUri;
+        }
+        setDeckImages(map);
+      }
       setMessages((current) => [
         ...current,
         {
           id: createId(),
           role: "assistant",
-          content: `${materialNote} ${summary}`,
+          content: `${materialNote} Deck ${payload.deck!.style}: ${payload.deck!.slides.length} slide. ${titles}${
+            payload.deck!.slides.length > 3 ? "…" : ""
+          }`,
           attachments: [],
         },
       ]);
       setShowArtifact(true);
       setSidebarOpen(false);
-      setIllustrating(true);
-
-      try {
-        const imageResponse = await fetch("/api/generate/images", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ presentation: payload.presentation }),
-        });
-        const imagePayload = (await imageResponse.json()) as {
-          assets?: Presentation["assets"] | null;
-        };
-        if (imageResponse.ok && imagePayload.assets) {
-          setPresentation({
-            ...payload.presentation,
-            assets: imagePayload.assets,
-          });
-        }
-      } catch {
-        // Slide stays visible without photos.
-      } finally {
-        setIllustrating(false);
-      }
     } catch (cause) {
       const message =
-        cause instanceof Error ? cause.message : "Gagal menyusun slide";
+        cause instanceof Error ? cause.message : "Gagal menyusun deck";
       setError(message);
       setMessages((current) => [
         ...current,
@@ -224,12 +235,13 @@ export function ChatApp() {
           id: createId(),
           role: "assistant",
           content:
-            "Slide tidak bisa disusun dari brief itu. Coba tulis topiknya lebih jelas, atau kirim lagi.",
+            "Deck tidak bisa disusun dari brief itu. Coba tulis topiknya lebih jelas, atau kirim lagi.",
           attachments: [],
         },
       ]);
     } finally {
       setIsGenerating(false);
+      setIllustrating(false);
     }
   };
 
@@ -254,6 +266,9 @@ export function ChatApp() {
     setDraft("");
     setError(null);
     setShowArtifact(false);
+    setDeck(null);
+    setDeckImages({});
+    setDeckCost(undefined);
     setPresentation(null);
     setIllustrating(false);
     setIsGenerating(false);
@@ -265,6 +280,8 @@ export function ChatApp() {
     "Percakapan baru";
 
   const empty = messages.length === 0 && !isGenerating;
+  const showDeck = Boolean(showArtifact && deck);
+  const showTr01 = Boolean(showArtifact && presentation && !deck);
 
   return (
     <div
@@ -326,7 +343,11 @@ export function ChatApp() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
-        <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${showArtifact ? "lg:w-[380px] lg:shrink-0" : "flex-1"}`}>
+        <div
+          className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${
+            showArtifact ? "lg:w-[380px] lg:shrink-0" : "flex-1"
+          }`}
+        >
           <header className="flex items-center gap-2 px-3 py-3 lg:px-6">
             <button
               type="button"
@@ -346,7 +367,7 @@ export function ChatApp() {
                   Mau bikin presentasi apa?
                 </h1>
                 <p className="mt-3 max-w-md text-center text-[15px] leading-6 text-neutral/70">
-                  Tulis brief, atau unggah materi sumber — PDF, PowerPoint, Word, Excel, teks, atau gambar.
+                  Tulis brief, pilih gaya consulting atau editorial, atau unggah materi sumber.
                 </p>
               </div>
             ) : (
@@ -380,8 +401,8 @@ export function ChatApp() {
                 {isGenerating ? (
                   <p className="text-sm text-interactive">
                     {illustrating
-                      ? "Menyusun infografis editorial…"
-                      : "Menyusun kerangka slide…"}
+                      ? "Menyusun ilustrasi dekoratif…"
+                      : "Menyusun kerangka deck…"}
                   </p>
                 ) : null}
                 <div ref={bottomRef} />
@@ -390,10 +411,7 @@ export function ChatApp() {
           </div>
 
           <div className="px-4 pb-5">
-            <form
-              onSubmit={onSubmit}
-              className="mx-auto w-full max-w-2xl"
-            >
+            <form onSubmit={onSubmit} className="mx-auto w-full max-w-2xl">
               {empty ? (
                 <div className="mb-3 flex flex-wrap justify-center gap-2">
                   {STARTERS.map((starter) => (
@@ -417,6 +435,29 @@ export function ChatApp() {
                   dragging ? "border-interactive" : "border-highlight"
                 }`}
               >
+                <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
+                  <span className="text-[11px] font-medium text-neutral/50">Gaya</span>
+                  {(
+                    [
+                      { id: "consulting" as const, label: "Consulting" },
+                      { id: "editorial" as const, label: "Editorial" },
+                    ]
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setStyleId(opt.id)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        styleId === opt.id
+                          ? "bg-primary text-white"
+                          : "bg-surface text-neutral ring-1 ring-highlight hover:text-interactive"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
                 {pending.length > 0 ? (
                   <div className="mb-2 grid gap-2 sm:grid-cols-2">
                     {pending.map((file) => (
@@ -496,14 +537,26 @@ export function ChatApp() {
                 <p className="mt-2 text-center text-xs text-primary">{error}</p>
               ) : (
                 <p className="mt-2 text-center text-[11px] text-neutral/45">
-                  M0 memakai layout TR-01. Materi terlampir ikut ke dalam percakapan.
+                  Estimasi ≈ $0.02 teks + gambar jika card · PPTX chart native
                 </p>
               )}
             </form>
           </div>
         </div>
 
-        {showArtifact && presentation ? (
+        {showDeck && deck ? (
+          <div className="h-[46vh] min-h-0 min-w-0 w-full flex-1 overflow-hidden border-t border-highlight bg-surface lg:h-auto lg:border-t-0 lg:border-l">
+            <DeckViewer
+              deck={deck}
+              images={deckImages}
+              cost={deckCost}
+              illustrating={illustrating}
+              onClose={() => setShowArtifact(false)}
+            />
+          </div>
+        ) : null}
+
+        {showTr01 && presentation ? (
           <div className="h-[46vh] min-h-0 min-w-0 w-full flex-1 overflow-hidden border-t border-highlight bg-surface lg:h-auto lg:border-t-0 lg:border-l">
             <PresentationPanel
               presentation={presentation}

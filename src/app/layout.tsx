@@ -19,7 +19,9 @@ export const metadata: Metadata = {
   description: "Chat untuk merancang presentasi eksekutif dan mengekspor PPTX yang tetap bisa diedit",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="id"

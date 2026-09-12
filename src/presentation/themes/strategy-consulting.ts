@@ -1,7 +1,7 @@
 import type { Theme } from "./types";
 
 /**
- * McKinsey exhibit grammar on the product palette.
+ * Consulting exhibit grammar on the product palette.
  */
 export const strategyConsultingTheme: Theme = {
   id: "strategyConsulting",

@@ -90,7 +90,7 @@ export function PresentationPanel({
           </h2>
           {illustrating ? (
             <p className="mt-0.5 text-[11px] text-interactive">
-              Menyusun infografis editorial…
+              Menyusun ilustrasi dekoratif…
             </p>
           ) : null}
         </div>

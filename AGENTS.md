@@ -14,7 +14,8 @@ Presentasi AI generates executive-grade, editable PowerPoint presentations. Doma
 
 ## Current milestone
 
-M0 only: Presentation DSL → deterministic TR-01 layout → web renderer → editable PPTX. Do not add OpenRouter, auth, database, uploads, Visual QA, or image generation until asked.
+DeckForge pipeline per `docs/SPEC.md` and `docs/TASKS.md`. Work tasks in order.
+Do not add auth, database, or Visual QA until asked.
 
 ## Architecture
 

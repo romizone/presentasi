@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./deck.css";
 
 :root {
   --primary: #2556bc;

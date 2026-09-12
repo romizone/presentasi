@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { iconForItem } from "./icons";
 
-describe("infographic icon mapping", () => {
+describe("consulting icon mapping", () => {
   it("picks a food icon for nutrition copy", () => {
     expect(iconForItem("Menu bergizi terstandar", 0, "target")).toBe("utensils");
   });

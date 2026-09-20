@@ -1,3 +1,5 @@
+import type { ArchetypeId } from "../dsl/types";
+
 export const SLIDE_WIDTH_IN = 13.3333333333;
 export const SLIDE_HEIGHT_IN = 7.5;
 export const SLIDE_ASPECT_RATIO = "16:9" as const;
@@ -116,7 +118,7 @@ export type LayoutIR = {
   slideWidth: typeof SLIDE_WIDTH_IN;
   slideHeight: typeof SLIDE_HEIGHT_IN;
   aspectRatio: typeof SLIDE_ASPECT_RATIO;
-  archetype: "TR-01";
+  archetype: ArchetypeId;
   background: string;
   backgroundGradient?: GradientFill;
   nodes: LayoutNode[];

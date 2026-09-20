@@ -13,6 +13,12 @@ export async function POST(request: Request) {
     if (!slide) {
       return NextResponse.json({ error: "Slide is required" }, { status: 400 });
     }
+    if (slide.archetype !== "TR-01") {
+      return NextResponse.json(
+        { error: "Scene images are only generated for TR-01 slides" },
+        { status: 400 },
+      );
+    }
 
     const assets = await generateSceneImages(slide);
     return NextResponse.json({ assets: assets ?? null });

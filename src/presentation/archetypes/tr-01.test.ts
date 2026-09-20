@@ -12,7 +12,7 @@ import { layoutTr01 } from "./tr-01";
 describe("TR-01 layout engine", () => {
   const slide = samplePresentation.slides[0];
 
-  if (!slide) {
+  if (!slide || slide.archetype !== "TR-01") {
     throw new Error("sample presentation is missing TR-01");
   }
 

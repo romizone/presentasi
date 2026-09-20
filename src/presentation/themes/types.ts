@@ -1,3 +1,5 @@
+export type ThemeId = "strategyConsulting" | "derived";
+
 export type ThemeColors = {
   background: string;
   ink: string;
@@ -18,7 +20,7 @@ export type ThemeColors = {
 };
 
 export type Theme = {
-  id: "strategyConsulting";
+  id: ThemeId;
   name: string;
   colors: ThemeColors;
   fonts: {

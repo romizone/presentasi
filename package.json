@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke": "tsx --env-file=.env.local scripts/smoke.ts",
-    "generate:deck": "tsx --env-file=.env.local scripts/generate-deck.ts"
+    "generate:deck": "tsx --env-file=.env.local scripts/generate-deck.ts",
+    "preview:slides": "tsx scripts/preview-slides.ts"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",

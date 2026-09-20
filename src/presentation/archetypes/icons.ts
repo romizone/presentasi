@@ -32,3 +32,31 @@ export function iconForItem(
   const fallback = side === "current" ? CURRENT_FALLBACK : TARGET_FALLBACK;
   return fallback[index % fallback.length] ?? "sparkles";
 }
+
+const CARD_FALLBACK: SlideIconId[] = [
+  "lightbulb",
+  "layers",
+  "activity",
+  "link",
+  "shield",
+  "users",
+];
+
+/**
+ * Pick a registered icon for a card grid cell.
+ *
+ * Hints are free text supplied by an author or a model — the enum itself is
+ * never emitted upstream. Matching runs over every hint joined together so a
+ * heading like "Keamanan data" resolves even when `iconHint` is absent.
+ */
+export function iconForCard(
+  index: number,
+  ...hints: (string | undefined)[]
+): SlideIconId {
+  const haystack = hints.filter(Boolean).join(" ");
+  const match = KEYWORD_ICONS.find((rule) => rule.pattern.test(haystack));
+  if (match) {
+    return match.icon;
+  }
+  return CARD_FALLBACK[index % CARD_FALLBACK.length] ?? "sparkles";
+}

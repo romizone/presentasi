@@ -1,4 +1,4 @@
-import type { PresentationAssets, Slide } from "../dsl/types";
+import type { PresentationAssets, Tr01Slide } from "../dsl/types";
 import type { Theme } from "../themes/types";
 import { centerX } from "./geometry";
 import {
@@ -191,7 +191,7 @@ function pushColumn(
 }
 
 export function layoutTr01(
-  slide: Slide,
+  slide: Tr01Slide,
   theme: Theme,
   assets?: PresentationAssets,
 ): LayoutIR {

@@ -29,7 +29,12 @@ describe("TR-01 draft parsing", () => {
     const draft = parseTr01Draft(sample);
     const presentation = presentationFromDraft(draft, "slide tentang MBG");
     expect(validatePresentation(presentation).slides[0]?.actionTitle).toContain("MBG");
-    expect(presentation.slides[0]?.content.current.items).toHaveLength(3);
+    const first = presentation.slides[0];
+    expect(first?.archetype).toBe("TR-01");
+    if (first?.archetype !== "TR-01") {
+      throw new Error("expected a TR-01 slide");
+    }
+    expect(first.content.current.items).toHaveLength(3);
   });
 
   it("parses fenced JSON", () => {

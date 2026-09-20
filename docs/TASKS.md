@@ -137,6 +137,77 @@ ditelusuri balik ke halaman sumbernya.
 
 ---
 
+## Task 9 — Impor gambar infografis jadi PPTX editable
+
+Infografis dari NotebookLM atau model gambar adalah raster: teksnya sudah jadi piksel.
+Arahnya **bangun ulang, bukan jiplak** — VLM *membaca* isi dan strukturnya, lalu isinya
+masuk DSL dan dilayout ulang oleh archetype. Hasilnya tidak identik piksel dengan aslinya,
+tetapi seluruh teks dan bentuknya native dan bisa diedit di PowerPoint.
+
+Jangan tempuh jalur sebaliknya (OCR bbox lalu tempel teks di atas gambar asli): koordinat
+dari model meleset 5–15% kanvas, fontnya tidak akan pernah cocok, dan hasil akhirnya tetap
+satu gambar besar per slide — persis yang dilarang aturan "PPTX must stay editable".
+
+```
+PNG infografis
+  ├─[1] Ekstrak palet ..... median cut          deterministik, tanpa AI
+  ├─[2] Baca (VLM) ........ 1 panggilan/gambar, structured output
+  ├─[3] Crop sprite ....... hanya untuk ilustrasi asli, bukan teks
+  ├─[4] Map → DSL ......... pilih archetype
+  └─[5] layoutSlide() ..... → LayoutIR → web + PPTX   (sudah ada)
+```
+
+### 9a — Fondasi deterministik ✅
+
+- `Slide` jadi discriminated union per archetype; `LayoutIR.archetype` ikut melebar.
+- Archetype `IG-01` (grid kartu 2–6, ikon + angka + heading + body) di
+  `archetypes/ig-01.ts`. Jumlah kolom/baris ditentukan archetype dari jumlah kartu —
+  DSL tidak pernah membawanya.
+- `themes/palette.ts`: `quantizePalette` (median cut) dan `themeFromPalette` yang
+  memetakan palet ke 17 token tema. Jaminan kontras dibangun secara konstruktif, bukan
+  diharapkan: body 7:1, sekunder 4.5:1, isi di atas fill aksen 4.5:1 (teks) dan 3:1 (ikon) —
+  diperiksa terhadap permukaan paling gelap di tema, bukan hanya terhadap background.
+- `pnpm preview:slides out.html` merender semua sampel archetype untuk diperiksa mata.
+  Tes geometri membuktikan node tidak keluar kanvas; ia tidak bisa memberi tahu bahwa
+  sebuah kartu dua pertiganya kosong.
+
+### 9b — Decoder gambar
+
+Butuh PNG/JPEG → buffer RGBA untuk memberi makan `quantizePalette`. Pakai `sharp`, dan
+turunkan gambar ke sisi panjang maksimal 1920px sebelum diproses.
+
+**Selesai ketika:** unggah satu PNG menghasilkan `Theme` yang warnanya jelas berasal dari
+gambar itu, dan hasilnya sama persis pada unggahan kedua.
+
+### 9c — Pembaca VLM
+
+`presentation/importer/read-infographic.ts`. Satu panggilan per gambar ke `getModel("visualQa")`
+dengan structured output: `{ kicker, cards[], pictureRegions[], suggestedSlideSplit }`.
+Model tidak boleh mengeluarkan koordinat slide, nama ikon dari enum, atau ukuran font —
+hanya isi. `iconHint` berupa kata bebas; `iconForCard` yang memetakannya ke enum.
+
+Infografis padat sebaiknya pecah jadi 3–5 slide. Biarkan model mengusulkan pemecahannya.
+
+**Selesai ketika:** satu infografis 1024×1024 menghasilkan deck yang lolos validasi, dan
+membaca seluruh `actionTitle` berurutan tetap masuk akal.
+
+### 9d — Sprite ilustrasi
+
+Crop `pictureRegions` dari PNG asli jadi `ImageNode`. Bbox dari model boleh meleset di sini —
+potong agak longgar. Yang tidak boleh: menempatkan gambar sebagai latar seluruh slide.
+
+### 9e — Chart yang terbaca dari gambar
+
+Kalau infografis punya bar/pie, VLM boleh membacanya jadi `ChartSpec` supaya jadi chart
+native. Angkanya hasil membaca gambar, bukan dari sumber — wajib `needsReview: true` dan
+baris sumber yang menyatakan itu. Jangan diloloskan diam-diam (lihat SPEC 1.3).
+
+### 9f — Archetype lanjutan
+
+`IG-02` baris KPI dan `IG-03` proses/timeline, mengikuti empat langkah di `AGENTS.md`.
+
+---
+
 ## Setelah MVP
 
 Kandidat berikutnya, berdasarkan nilai per usaha:

@@ -1,5 +1,5 @@
 import { getModel, openRouterHeaders } from "./model-router";
-import type { PresentationAssets, SceneAsset, Slide } from "../dsl/types";
+import type { PresentationAssets, SceneAsset, Tr01Slide } from "../dsl/types";
 
 const QUALITY_LOCK = [
   "Flat vector consulting illustration, landscape 16:9 exhibit panel.",
@@ -27,7 +27,10 @@ export type ImageRef = {
   mimeType?: string;
 };
 
-export function scenePrompt(slide: Slide, side: "current" | "target"): string {
+export function scenePrompt(
+  slide: Tr01Slide,
+  side: "current" | "target",
+): string {
   const authored =
     side === "current" ? slide.visual.currentScene : slide.visual.targetScene;
   const items = slide.content[side].items.join("; ");
@@ -279,7 +282,7 @@ async function generateOne(prompt: string): Promise<SceneAsset | undefined> {
 }
 
 export async function generateSceneImages(
-  slide: Slide,
+  slide: Tr01Slide,
 ): Promise<PresentationAssets | undefined> {
   const [currentScene, targetScene] = await Promise.all([
     generateOne(scenePrompt(slide, "current")),

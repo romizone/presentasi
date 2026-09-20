@@ -1,12 +1,21 @@
 import { findForbiddenLayoutKeys } from "./forbidden";
 import {
   DSL_VERSION,
+  IG01_MAX_CARDS,
+  IG01_MIN_CARDS,
   REGISTERED_ARCHETYPES,
+  type ArchetypeId,
+  type CardEmphasis,
+  type CardGridCard,
+  type Ig01Content,
+  type Ig01Slide,
   type Presentation,
   type PresentationAssets,
   type SceneAsset,
   type Slide,
   type Tr01Content,
+  type Tr01Slide,
+  type VisualEmphasis,
 } from "./types";
 
 export class DslValidationError extends Error {
@@ -30,12 +39,34 @@ function requireString(value: unknown, path: string): string {
   return value;
 }
 
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
 function requireStringArray(value: unknown, path: string, min: number): string[] {
   if (!Array.isArray(value) || value.length < min) {
     throw new DslValidationError(`${path} must be an array with at least ${min} item(s)`);
   }
   return value.map((item, index) => requireString(item, `${path}[${index}]`));
 }
+
+function parseSlideBase(value: Record<string, unknown>, path: string) {
+  return {
+    id: requireString(value.id, `${path}.id`),
+    actionTitle: requireString(value.actionTitle, `${path}.actionTitle`),
+    keyMessage: requireString(value.keyMessage, `${path}.keyMessage`),
+    notes: typeof value.notes === "string" ? value.notes : undefined,
+    sources: Array.isArray(value.sources)
+      ? value.sources.map((item, index) =>
+          requireString(item, `${path}.sources[${index}]`),
+        )
+      : undefined,
+  };
+}
+
+/* ------------------------------------------------------------------ TR-01 */
 
 function parseTr01Content(value: unknown, path: string): Tr01Content {
   if (!isRecord(value)) {
@@ -68,19 +99,7 @@ function parseTr01Content(value: unknown, path: string): Tr01Content {
   };
 }
 
-function parseSlide(value: unknown, path: string): Slide {
-  if (!isRecord(value)) {
-    throw new DslValidationError(`${path} must be an object`);
-  }
-
-  const archetype = requireString(value.archetype, `${path}.archetype`);
-  if (!REGISTERED_ARCHETYPES.includes(archetype as Slide["archetype"])) {
-    throw new DslValidationError(
-      `${path}.archetype "${archetype}" is not registered`,
-      [`Registered archetypes: ${REGISTERED_ARCHETYPES.join(", ")}`],
-    );
-  }
-
+function parseTr01Slide(value: Record<string, unknown>, path: string): Tr01Slide {
   if (!isRecord(value.visual)) {
     throw new DslValidationError(`${path}.visual must be an object`);
   }
@@ -101,30 +120,107 @@ function parseSlide(value: unknown, path: string): Slide {
   }
 
   return {
-    id: requireString(value.id, `${path}.id`),
+    ...parseSlideBase(value, path),
     archetype: "TR-01",
-    actionTitle: requireString(value.actionTitle, `${path}.actionTitle`),
-    keyMessage: requireString(value.keyMessage, `${path}.keyMessage`),
     content: parseTr01Content(value.content, `${path}.content`),
     visual: {
       type: "current-target-comparison",
-      emphasis,
-      currentScene:
-        typeof value.visual.currentScene === "string"
-          ? value.visual.currentScene.trim() || undefined
-          : undefined,
-      targetScene:
-        typeof value.visual.targetScene === "string"
-          ? value.visual.targetScene.trim() || undefined
-          : undefined,
+      emphasis: emphasis satisfies VisualEmphasis,
+      currentScene: optionalString(value.visual.currentScene),
+      targetScene: optionalString(value.visual.targetScene),
     },
-    notes: typeof value.notes === "string" ? value.notes : undefined,
-    sources: Array.isArray(value.sources)
-      ? value.sources.map((item, index) =>
-          requireString(item, `${path}.sources[${index}]`),
-        )
-      : undefined,
   };
+}
+
+/* ------------------------------------------------------------------ IG-01 */
+
+function parseCard(value: unknown, path: string): CardGridCard {
+  if (!isRecord(value)) {
+    throw new DslValidationError(`${path} must be an object`);
+  }
+  return {
+    heading: requireString(value.heading, `${path}.heading`),
+    body: requireString(value.body, `${path}.body`),
+    metric: optionalString(value.metric),
+    iconHint: optionalString(value.iconHint),
+  };
+}
+
+function parseIg01Content(value: unknown, path: string): Ig01Content {
+  if (!isRecord(value)) {
+    throw new DslValidationError(`${path} must be an object`);
+  }
+
+  if (!Array.isArray(value.cards)) {
+    throw new DslValidationError(`${path}.cards must be an array`);
+  }
+  if (
+    value.cards.length < IG01_MIN_CARDS ||
+    value.cards.length > IG01_MAX_CARDS
+  ) {
+    throw new DslValidationError(
+      `${path}.cards must hold between ${IG01_MIN_CARDS} and ${IG01_MAX_CARDS} cards`,
+      [`Received ${value.cards.length}. Split dense source material across slides.`],
+    );
+  }
+
+  return {
+    kicker: optionalString(value.kicker),
+    cards: value.cards.map((card, index) => parseCard(card, `${path}.cards[${index}]`)),
+    takeaway: optionalString(value.takeaway),
+  };
+}
+
+function parseIg01Slide(value: Record<string, unknown>, path: string): Ig01Slide {
+  if (!isRecord(value.visual)) {
+    throw new DslValidationError(`${path}.visual must be an object`);
+  }
+
+  const visualType = requireString(value.visual.type, `${path}.visual.type`);
+  if (visualType !== "card-grid") {
+    throw new DslValidationError(`${path}.visual.type is invalid for IG-01`);
+  }
+
+  const emphasis = requireString(value.visual.emphasis, `${path}.visual.emphasis`);
+  if (emphasis !== "metric" && emphasis !== "narrative" && emphasis !== "balanced") {
+    throw new DslValidationError(
+      `${path}.visual.emphasis is invalid`,
+      ["Expected one of: metric, narrative, balanced"],
+    );
+  }
+
+  return {
+    ...parseSlideBase(value, path),
+    archetype: "IG-01",
+    content: parseIg01Content(value.content, `${path}.content`),
+    visual: {
+      type: "card-grid",
+      emphasis: emphasis satisfies CardEmphasis,
+    },
+  };
+}
+
+/* ---------------------------------------------------------------- dispatch */
+
+function parseSlide(value: unknown, path: string): Slide {
+  if (!isRecord(value)) {
+    throw new DslValidationError(`${path} must be an object`);
+  }
+
+  const archetype = requireString(value.archetype, `${path}.archetype`);
+  if (!(REGISTERED_ARCHETYPES as readonly string[]).includes(archetype)) {
+    throw new DslValidationError(
+      `${path}.archetype "${archetype}" is not registered`,
+      [`Registered archetypes: ${REGISTERED_ARCHETYPES.join(", ")}`],
+    );
+  }
+
+  switch (archetype as ArchetypeId) {
+    case "TR-01":
+      return parseTr01Slide(value, path);
+    case "IG-01":
+      return parseIg01Slide(value, path);
+  }
 }
 
 export function validatePresentation(input: unknown): Presentation {
